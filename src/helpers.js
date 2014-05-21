@@ -1,97 +1,138 @@
-angular.module('duScroll.scrollHelpers', []).
-run(function($window, $q, cancelAnimation, requestAnimation, duScrollEasing) {
-  var proto = angular.element.prototype;
-  this.$get = function() {
-    return proto;
-  };
-  
-  var isDocument = function(el) {
-    return (typeof HTMLDocument !== 'undefined' && el instanceof HTMLDocument) || (el.nodeType && el.nodeType === el.DOCUMENT_NODE);
-  };
-
-  var isElement = function(el) {
-    return (typeof HTMLElement !== 'undefined' && el instanceof HTMLElement) || (el.nodeType && el.nodeType === el.ELEMENT_NODE);
-  };
-
-  var unwrap = function(el) {
-    return isElement(el) || isDocument(el) ? el : el[0];
-  };
-
-  proto.scrollTo = function(left, top, duration, easing) {
-    var aliasFn;
-    if(angular.isElement(left)) {
-      aliasFn = this.scrollToElement;
-    } else if(duration) {
-      aliasFn = this.scrollToAnimated;
-    }
-    if(aliasFn) {
-      return aliasFn.apply(this, arguments);
-    }
-    var el = unwrap(this);
-    if(isDocument(el)) {
-      return $window.scrollTo(left, top);
-    }
-    el.scrollLeft = left;
-    el.scrollTop = top;
-  };
-
-  var scrollAnimation, deferred;
-  proto.scrollToAnimated = function(left, top, duration, easing) {
-    if(duration && !easing) {
-      easing = duScrollEasing;
-    }
-    var startLeft = this.scrollLeft(),
-        startTop = this.scrollTop(),
-        deltaLeft = Math.round(left - startLeft),
-        deltaTop = Math.round(top - startTop);
-
-
-    var startTime = null;
-    if(scrollAnimation) {
-      cancelAnimation(scrollAnimation);
-      deferred.reject();
-    }
-    var el = this;
-    deferred = $q.defer();
-
-    if(!deltaLeft && !deltaTop) {
-      deferred.resolve();
-      return deferred.promise;
-    }
-
-    var animationStep = function(timestamp) {
-      if (startTime === null) {
-        startTime = timestamp;
-      }
-
-      var progress = timestamp - startTime;
-      var percent = (progress >= duration ? 1 : easing(progress/duration));
-      
-      el.scrollTo(
-        startLeft + Math.ceil(deltaLeft * percent),
-        startTop + Math.ceil(deltaTop * percent)
-      );
-      if(percent < 1) {
-        scrollAnimation = requestAnimation(animationStep);
-      } else {
-        scrollAnimation = null;
-        deferred.resolve();
-      }
+angular.module('duScroll.scrollHelpers', []).run([
+  '$window',
+  '$q',
+  'cancelAnimation',
+  'requestAnimation',
+  'duScrollEasing',
+  function ($window, $q, cancelAnimation, requestAnimation, duScrollEasing) {
+    var proto = angular.element.prototype;
+    this.$get = function () {
+      return proto;
     };
+    var isDocument = function (el) {
+      return typeof HTMLDocument !== 'undefined' && el instanceof HTMLDocument || el.nodeType && el.nodeType === el.DOCUMENT_NODE;
+    };
+    var isElement = function (el) {
+      return typeof HTMLElement !== 'undefined' && el instanceof HTMLElement || el.nodeType && el.nodeType === el.ELEMENT_NODE;
+    };
+    var unwrap = function (el) {
+      return isElement(el) || isDocument(el) ? el : el[0];
+    };
+    proto.scrollTo = function (left, top, duration, easing) {
+      var aliasFn;
+      if (angular.isElement(left)) {
+        aliasFn = this.scrollToElement;
+      } else if (duration) {
+        aliasFn = this.scrollToAnimated;
+      }
+      if (aliasFn) {
+        return aliasFn.apply(this, arguments);
+      }
+      var el = unwrap(this);
+      if (isDocument(el)) {
+        return $window.scrollTo(left, top);
+      }
+      el.scrollLeft = left;
+      el.scrollTop = top;
+    };
+    var scrollAnimation, deferred;
+    proto.scrollToAnimated = function (left, top, duration, easing) {
+        if (duration && !easing) {
+            easing = duScrollEasing;
+        }
+        var startLeft = this.scrollLeft(), startTop = this.scrollTop(), deltaLeft = Math.round(left - startLeft), deltaTop = Math.round(top - startTop);
+        if (!deltaLeft && !deltaTop)
+            return;
+        var startTime = null;
+        if (scrollAnimation) {
+            cancelAnimation(scrollAnimation);
+            deferred.reject();
+        }
+        var el = this;
+        deferred = $q.defer();
+        var animationStep = function (timestamp) {
+            if (startTime === null) {
+                startTime = timestamp;
+            }
+            var progress = timestamp - startTime;
+            var percent = progress >= duration ? 1 : easing(progress / duration);
+            el.scrollTo(startLeft + Math.ceil(deltaLeft * percent), startTop + Math.ceil(deltaTop * percent));
+            if (percent < 1) {
+                scrollAnimation = requestAnimation(animationStep);
+            } else {
+                scrollAnimation = null;
+                deferred.resolve();
+            }
+        };
+        scrollAnimation = requestAnimation(animationStep);
+        return deferred.promise;
+    };
+    proto.scrollToElement = function (target, offset, duration, easing) {
+        var el = unwrap(this);
+        var top = this.scrollTop() + unwrap(target).getBoundingClientRect().top - offset;
+        if (isElement(el)) {
+            top -= el.getBoundingClientRect().top;
+        }
+        return this.scrollTo(0, top, duration, easing);
+    };
+    proto.scrollToElementAnimated = function (target, offset, duration, easing) {
 
-    scrollAnimation = requestAnimation(animationStep);
-    return deferred.promise;
-  };
+        if (duration && !easing) {
+            easing = duScrollEasing;
+        }
 
-  proto.scrollToElement = function(target, offset, duration, easing) {
-    var el = unwrap(this);
-    var top = this.scrollTop() + unwrap(target).getBoundingClientRect().top - offset;
-    if(isElement(el)) {
-      top -= el.getBoundingClientRect().top;
-    }
-    return this.scrollTo(0, top, duration, easing);
-  };
+        var el = this;
 
+        var top = el.scrollTop() + unwrap(target).getBoundingClientRect().top - offset;
+        if (isElement(el)) {
+            top -= el.getBoundingClientRect().top;
+        }
+        var left = 0;
+
+        var startLeft = el.scrollLeft(),
+            startTop = el.scrollTop(),
+            deltaLeft = Math.round(left - startLeft),
+            deltaTop = Math.round(top - startTop);
+
+        if (!deltaLeft && !deltaTop)
+            return;
+
+        var startTime = null;
+        if (scrollAnimation) {
+            cancelAnimation(scrollAnimation);
+            deferred.reject();
+        }
+
+        deferred = $q.defer();
+        var animationStep = function (timestamp) {
+            if (startTime === null) {
+                startTime = timestamp;
+            }
+
+            var top = el.scrollTop() + unwrap(target).getBoundingClientRect().top - offset;
+            if (isElement(el)) {
+                top -= el.getBoundingClientRect().top;
+            }
+
+            startLeft = el.scrollLeft();
+            startTop = el.scrollTop();
+            deltaLeft = Math.round(left - startLeft);
+            deltaTop = Math.round(top - startTop);
+
+            var progress = timestamp - startTime;
+            var percent = progress >= duration ? 1 : easing(progress / duration);
+            el.scrollTo(startLeft + Math.ceil(deltaLeft * percent), startTop + Math.ceil(deltaTop * percent));
+            if (percent < 1) {
+                scrollAnimation = requestAnimation(animationStep);
+            } else {
+                scrollAnimation = null;
+                deferred.resolve();
+            }
+        };
+        scrollAnimation = requestAnimation(animationStep);
+        return deferred.promise;
+    };
+    
   var overloaders = {
     scrollLeft: function(value, duration, easing) {
       if(angular.isNumber(value)) {
