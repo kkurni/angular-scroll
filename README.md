@@ -1,6 +1,8 @@
 angular-scroll
 ==============
 
+**Customized so that it will not overflow on mobile accordion
+
 Only dependent on AngularJS (no jQuery). 6K minified or 1.1K gzipped.
 
 Example
